@@ -27,12 +27,12 @@ export const createDecl = (prop, value) => postcss.decl({
     value,
 })
 
-export const createAtrule = (name, params) => postcss.atRule({
+export const createAtrule = (name, params, options = {}) => postcss.atRule({
     raws: { before: '\n  ', between: '', afterName: '', identifier: '.' },
     type: 'atrule',
     name,
     params,
-    mixin: true,
+    ...options
 })
 
 export const ruleSetSort = (a: any, b: any) => {

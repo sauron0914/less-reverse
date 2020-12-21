@@ -23,6 +23,17 @@ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
 
+var __assign = function() {
+    __assign = Object.assign || function __assign(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+
 function __spreadArrays() {
     for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
     for (var r = Array(s), k = 0, i = 0; i < il; i++)
@@ -59,19 +70,18 @@ var traverseFile = function (src, callback) {
         }
     });
 };
-var createAtrule = function (name, params) { return postcss.atRule({
-    raws: { before: '\n  ', between: '', afterName: '', identifier: '.' },
-    type: 'atrule',
-    name: name,
-    params: params,
-    mixin: true,
-}); };
+var createAtrule = function (name, params, options) {
+    if (options === void 0) { options = {}; }
+    return postcss.atRule(__assign({ raws: { before: '\n  ', between: '', afterName: '', identifier: '.' }, type: 'atrule', name: name,
+        params: params }, options));
+};
 var ruleSetSort = function (a, b) {
     var getLength = function (k) { return Object.keys(k[1].ruleSets).length; };
     return getLength(b) - getLength(a);
 };
 
 var fs = require('fs');
+var program = require('commander');
 var path = require('path');
 var cwd = process.cwd() + '/';
 var syntax = require('postcss-less');
@@ -121,20 +131,21 @@ function dealCommonAst(res, commonVariable) {
     }, commonVariable);
 }
 var createNewLess = function (res, filePath, canExecOpen) {
-    console.log('filename', filePath);
     var arr = filePath.split('/');
     var _a = arr[arr.length - 1].split('.'), name = _a[0], suffix = _a.slice(1);
     var newFileName = name + '.less-reverse.' + suffix.join('.');
-    var newCss = '';
+    var gloablHeaderPath = program.args[3][program.args[3].length - 1] === ';' ? program.args[3] : (program.args[3] + ';');
+    var newCss = gloablHeaderPath + '\n\n';
     syntax.stringify(res, function (str) {
         newCss += str;
     });
+    console.log('canExecOpen', canExecOpen, cwd + newFileName);
     fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {}, function (err) {
         if (err)
             console.log(err);
         console.log('File created successfully');
         console.log("!!!\u6CE8\u610F\uFF1A\u9ED8\u8BA4\u4F1A\u5728\u76EE\u6807\u6587\u4EF6\u540C\u7EA7\u751F\u6210\u4E00\u4E2A" + newFileName + "\u6587\u4EF6");
-        canExecOpen && exec('open ' + cwd + 'res.less');
+        canExecOpen && exec('open ' + path.resolve(filePath, '..', newFileName));
     });
 };
 /**
@@ -196,7 +207,7 @@ var transformRule = function (lessTree) {
         }
         if (isCanBeConverted) {
             var nodes_1 = [];
-            lessTree.nodes.forEach(function (item, index) {
+            lessTree.nodes.forEach(function (item) {
                 if (item.type === RefType.decl) {
                     var temp = Object.entries(ruleSets).some(function (_a) {
                         var k = _a[0], i = _a[1];
@@ -215,7 +226,7 @@ var transformRule = function (lessTree) {
                     nodes_1.push(item);
                 }
             });
-            lessTree.nodes = __spreadArrays([createAtrule(key, original)], nodes_1);
+            lessTree.nodes = __spreadArrays([createAtrule(key, original, { mixin: true })], nodes_1);
         }
         return isCanBeConverted;
     });
@@ -263,14 +274,14 @@ var reseveFile = function (file, canExecOpen) {
     });
 };
 var lessReverse = function () {
-    var argvs = process.argv.splice(3).map(function (item) {
+    var argvs = __spreadArrays(program.args).splice(1).map(function (item) {
         if (item.substr(item.length - 1) === '/') {
             return item.substr(0, item.length - 1);
         }
         return item;
     });
-    if (argvs.length !== 2) {
-        throw new Error('only supports commands less-reverse start filePath1 filePath2');
+    if (argvs.length < 2 || argvs.length > 3) {
+        throw new Error('only supports commands less-reverse start filePath1 filePath2 [global header path]');
     }
     lessAST(argvs[0]).then(function (_a) {
         var fileData = _a.fileData, filename = _a.filename;

@@ -3,6 +3,7 @@ import { ICommonVariable, RefType } from "./types"
 import { createAtrule, ruleSetSort, traverseFile } from "./utils"
 
 const fs = require('fs')
+const program = require('commander')
 const path = require('path')
 const cwd = process.cwd() + '/'
 const syntax = require('postcss-less');
@@ -55,21 +56,25 @@ function dealCommonAst(res, commonVariable) {
 }
 
 const createNewLess = (res, filePath, canExecOpen)=> {
-    console.log('filename', filePath)
+
     const arr = filePath.split('/')
     const [name, ...suffix] = arr[arr.length -1].split('.')
     const newFileName = name + '.less-reverse.' + suffix.join('.')
-    let newCss = '';
+
+    const gloablHeaderPath = program.args[3][program.args[3].length - 1] === ';' ? program.args[3] : (program.args[3]+';')
+
+    let newCss =  gloablHeaderPath + '\n\n'
+
     syntax.stringify(res, function( str ) {
         newCss += str
     })
+    console.log('canExecOpen', canExecOpen,  cwd + newFileName)
     fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {} ,function(err){
         if(err) console.log(err)
         console.log('File created successfully');
         console.log(`!!!注意：默认会在目标文件同级生成一个${newFileName}文件`)
-        canExecOpen && exec( 'open ' + cwd+'res.less')
+        canExecOpen && exec( 'open ' + path.resolve(filePath, '..', newFileName))
     })
-
 }
 
 /**
@@ -132,7 +137,7 @@ const transformRule = lessTree => {
 
         if(isCanBeConverted) {
             const nodes = []
-            lessTree.nodes.forEach((item, index) => {
+            lessTree.nodes.forEach(item => {
                 if(item.type === RefType.decl) {
                     const temp = Object.entries(ruleSets).some(([k, i]) => {
                         if(k === item.prop) {
@@ -149,7 +154,7 @@ const transformRule = lessTree => {
                     nodes.push(item)
                 }
             })
-            lessTree.nodes = [createAtrule(key,original), ...nodes]
+            lessTree.nodes = [createAtrule(key,original, { mixin: true }), ...nodes]
         }
 
         return isCanBeConverted
@@ -161,7 +166,6 @@ const transformRule = lessTree => {
 
 const dealLess = rulesets => {
     rulesets.nodes.forEach(item => {
-       
         if(item.type === RefType.rule) {
             transformRule(item)
         }
@@ -177,7 +181,8 @@ const dealLess = rulesets => {
 
 const checkFileNotNeedTransform = (rulesets)=> {
     return rulesets.some(ruleset=> {
-        if(ruleset.type === RefType.atrule 
+        if(
+            ruleset.type === RefType.atrule 
             || (ruleset.type === RefType.rule && isMixinCall.test(ruleset.selector)) 
             || ruleset.type === RefType.comment && ruleset.text === LESS_DISABLE
         ) {
@@ -204,16 +209,15 @@ const reseveFile = (file: string, canExecOpen = false) => {
 }
 
 const lessReverse = () => {
-
-    const argvs = process.argv.splice(3).map(item=> {
+    const argvs = [...program.args].splice(1).map(item=> {
         if(item.substr(item.length -1) === '/') {
             return item.substr(0, item.length -1)
         }
         return item
     })
-
-    if(argvs.length !== 2) {
-        throw new Error('only supports commands less-reverse start filePath1 filePath2');
+   
+    if(argvs.length < 2 || argvs.length > 3) {
+        throw new Error('only supports commands less-reverse start filePath1 filePath2 [global header path]');
     }
 
     lessAST(argvs[0]).then(({
@@ -233,9 +237,7 @@ const lessReverse = () => {
                 reseveFile(file)
             })
         }
-    })
-
-   
+    })   
 }
 
 export { lessReverse }
