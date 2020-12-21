@@ -1,22 +1,8 @@
-// export enum RefType {
-//   Definition = 'Definition',
-//   Ruleset = 'Ruleset',
-//   RulesetOut = 'RulesetOut',
-//   MixinCall = 'MixinCall',
-//   DeclarationOut = 'DeclarationOut',
-//   AtRule = 'AtRule',
-//   AtRuleOut = 'AtRuleOut',
-//   MixinDefinition = 'MixinDefinition',
-//   MixinDefinitionOut = 'MixinDefinitionOut',
-//   Media = 'Media',
-//   MediaOut = 'MediaOut'
-// }
-
 export enum RefType {
   rule = 'rule',
   atrule = 'atrule',
   decl = 'decl',
-  comment = 'conment',
+  comment = 'comment',
   root = 'root'
 }
 

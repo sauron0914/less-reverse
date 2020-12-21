@@ -1,12 +1,19 @@
 import fs from 'fs'
 const postcss = require('postcss')
 
+const includeFile = ['.less']
+
+const matchSuffix = (str: string)=> {
+    const res = str.match(/\.\w+/g)
+    return res ? res[res.length-1] : ''
+}
+
 export const traverseFile= (src ,callback) => {
     let paths = fs.readdirSync(src).filter(item=> item !== 'node_modules')
     paths.forEach(path => {
         const _src = src + '/' + path
         const statSyncRes = fs.statSync(_src)
-        if(statSyncRes.isFile()) {
+        if(statSyncRes.isFile() && includeFile.includes(matchSuffix(path))) {
             callback(_src)
         } else if(statSyncRes.isDirectory()){ //是目录则 递归 
             traverseFile(_src, callback)

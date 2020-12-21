@@ -2,7 +2,11 @@
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
-require('fs');
+var fs$1 = require('fs');
+
+function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
+
+var fs__default = /*#__PURE__*/_interopDefaultLegacy(fs$1);
 
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
@@ -27,29 +31,34 @@ function __spreadArrays() {
     return r;
 }
 
-// export enum RefType {
-//   Definition = 'Definition',
-//   Ruleset = 'Ruleset',
-//   RulesetOut = 'RulesetOut',
-//   MixinCall = 'MixinCall',
-//   DeclarationOut = 'DeclarationOut',
-//   AtRule = 'AtRule',
-//   AtRuleOut = 'AtRuleOut',
-//   MixinDefinition = 'MixinDefinition',
-//   MixinDefinitionOut = 'MixinDefinitionOut',
-//   Media = 'Media',
-//   MediaOut = 'MediaOut'
-// }
 var RefType;
 (function (RefType) {
     RefType["rule"] = "rule";
     RefType["atrule"] = "atrule";
     RefType["decl"] = "decl";
-    RefType["comment"] = "conment";
+    RefType["comment"] = "comment";
     RefType["root"] = "root";
 })(RefType || (RefType = {}));
 
 var postcss = require('postcss');
+var includeFile = ['.less'];
+var matchSuffix = function (str) {
+    var res = str.match(/\.\w+/g);
+    return res ? res[res.length - 1] : '';
+};
+var traverseFile = function (src, callback) {
+    var paths = fs__default['default'].readdirSync(src).filter(function (item) { return item !== 'node_modules'; });
+    paths.forEach(function (path) {
+        var _src = src + '/' + path;
+        var statSyncRes = fs__default['default'].statSync(_src);
+        if (statSyncRes.isFile() && includeFile.includes(matchSuffix(path))) {
+            callback(_src);
+        }
+        else if (statSyncRes.isDirectory()) { //是目录则 递归 
+            traverseFile(_src, callback);
+        }
+    });
+};
 var createAtrule = function (name, params) { return postcss.atRule({
     raws: { before: '\n  ', between: '', afterName: '', identifier: '.' },
     type: 'atrule',
@@ -63,14 +72,18 @@ var ruleSetSort = function (a, b) {
 };
 
 var fs = require('fs');
+var path = require('path');
 var cwd = process.cwd() + '/';
 var syntax = require('postcss-less');
 var exec = require('child_process').exec;
-var fileUrl = '/src/demo1.less';
 var isMixinCall = /\(.*\)/;
+var LESS_DISABLE = 'less-disable';
 var lessAST = function (filename) {
     return new Promise(function (res) {
-        res(syntax.parse(fs.readFileSync(filename).toString()));
+        res({
+            fileData: syntax.parse(fs.readFileSync(filename).toString()),
+            filename: filename,
+        });
     });
 };
 function dealCommonAst(res, commonVariable) {
@@ -107,18 +120,21 @@ function dealCommonAst(res, commonVariable) {
         return pre;
     }, commonVariable);
 }
-var createNewLess = function (res) {
+var createNewLess = function (res, filePath, canExecOpen) {
+    console.log('filename', filePath);
+    var arr = filePath.split('/');
+    var _a = arr[arr.length - 1].split('.'), name = _a[0], suffix = _a.slice(1);
+    var newFileName = name + '.less-reverse.' + suffix.join('.');
     var newCss = '';
     syntax.stringify(res, function (str) {
         newCss += str;
     });
-    console.log(newCss);
-    fs.writeFile(cwd + 'res.less', newCss, {}, function (err) {
+    fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {}, function (err) {
         if (err)
             console.log(err);
-        console.log('文件创建成功');
-        console.log('!!!注意：默认会在当前目录下生成一个res.less文件');
-        exec('open ' + cwd + 'res.less');
+        console.log('File created successfully');
+        console.log("!!!\u6CE8\u610F\uFF1A\u9ED8\u8BA4\u4F1A\u5728\u76EE\u6807\u6587\u4EF6\u540C\u7EA7\u751F\u6210\u4E00\u4E2A" + newFileName + "\u6587\u4EF6");
+        canExecOpen && exec('open ' + cwd + 'res.less');
     });
 };
 /**
@@ -223,7 +239,9 @@ var dealLess = function (rulesets) {
 };
 var checkFileNotNeedTransform = function (rulesets) {
     return rulesets.some(function (ruleset) {
-        if (ruleset.type === RefType.atrule || (ruleset.type === RefType.rule && isMixinCall.test(ruleset.selector))) {
+        if (ruleset.type === RefType.atrule
+            || (ruleset.type === RefType.rule && isMixinCall.test(ruleset.selector))
+            || ruleset.type === RefType.comment && ruleset.text === LESS_DISABLE) {
             return true;
         }
         if (ruleset.nodes) {
@@ -232,16 +250,42 @@ var checkFileNotNeedTransform = function (rulesets) {
         return false;
     });
 };
-var lessReverse = function () {
-    lessAST('./common-variable.less').then(function (res) {
-        dealCommonAst(res, commonVariable);
-    });
-    lessAST(cwd + fileUrl).then(function (res) {
-        if (!checkFileNotNeedTransform(res.nodes)) {
-            createNewLess(dealLess(res));
+var reseveFile = function (file, canExecOpen) {
+    if (canExecOpen === void 0) { canExecOpen = false; }
+    lessAST(file).then(function (_a) {
+        var fileData = _a.fileData, filename = _a.filename;
+        if (!checkFileNotNeedTransform(fileData.nodes)) {
+            createNewLess(dealLess(fileData), filename, canExecOpen);
         }
         else {
-            console.log('not need transform');
+            console.log(filename + " file not need reverse");
+        }
+    });
+};
+var lessReverse = function () {
+    var argvs = process.argv.splice(3).map(function (item) {
+        if (item.substr(item.length - 1) === '/') {
+            return item.substr(0, item.length - 1);
+        }
+        return item;
+    });
+    if (argvs.length !== 2) {
+        throw new Error('only supports commands less-reverse start filePath1 filePath2');
+    }
+    lessAST(argvs[0]).then(function (_a) {
+        var fileData = _a.fileData, filename = _a.filename;
+        console.log("\uD83C\uDFCA\uD83C\uDFFB \uD83C\uDFCA\uD83C\uDFFB \uD83C\uDFCA\uD83C\uDFFB Start parsing " + filename + " file...");
+        dealCommonAst(fileData, commonVariable);
+        console.log("\uD83C\uDF89 \uD83C\uDF89 \uD83C\uDF89 Parse the file " + filename + " successfully...");
+    });
+    fs.stat(cwd + argvs[1], function (err, data) {
+        if (data.isFile()) {
+            reseveFile(cwd + argvs[1], data.isFile());
+        }
+        else {
+            traverseFile(cwd + argvs[1], function (file) {
+                reseveFile(file);
+            });
         }
     });
 };

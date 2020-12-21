@@ -1,18 +1,22 @@
 
 import { ICommonVariable, RefType } from "./types"
-import { createAtrule, ruleSetSort } from "./utils"
+import { createAtrule, ruleSetSort, traverseFile } from "./utils"
 
 const fs = require('fs')
+const path = require('path')
 const cwd = process.cwd() + '/'
 const syntax = require('postcss-less');
 const exec = require('child_process').exec
 
-const fileUrl = '/src/demo1.less'
 const isMixinCall = /\(.*\)/
+const LESS_DISABLE = 'less-disable'
 
 const lessAST: (filename: string) => Promise<any> = filename => {
     return new Promise(res => {
-        res(syntax.parse(fs.readFileSync(filename).toString()))
+        res({
+           fileData: syntax.parse(fs.readFileSync(filename).toString()),
+           filename,
+        })
     })
 }
 
@@ -50,18 +54,22 @@ function dealCommonAst(res, commonVariable) {
     }, commonVariable)
 }
 
-const createNewLess = (res)=> {
+const createNewLess = (res, filePath, canExecOpen)=> {
+    console.log('filename', filePath)
+    const arr = filePath.split('/')
+    const [name, ...suffix] = arr[arr.length -1].split('.')
+    const newFileName = name + '.less-reverse.' + suffix.join('.')
     let newCss = '';
     syntax.stringify(res, function( str ) {
         newCss += str
     })
-    console.log(newCss)
-    fs.writeFile(cwd+'res.less', newCss, {} ,function(err){
+    fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {} ,function(err){
         if(err) console.log(err)
-        console.log('文件创建成功');
-        console.log('!!!注意：默认会在当前目录下生成一个res.less文件')
-        exec( 'open ' + cwd+'res.less')
+        console.log('File created successfully');
+        console.log(`!!!注意：默认会在目标文件同级生成一个${newFileName}文件`)
+        canExecOpen && exec( 'open ' + cwd+'res.less')
     })
+
 }
 
 /**
@@ -169,7 +177,10 @@ const dealLess = rulesets => {
 
 const checkFileNotNeedTransform = (rulesets)=> {
     return rulesets.some(ruleset=> {
-        if(ruleset.type === RefType.atrule || (ruleset.type === RefType.rule && isMixinCall.test(ruleset.selector)) ) {
+        if(ruleset.type === RefType.atrule 
+            || (ruleset.type === RefType.rule && isMixinCall.test(ruleset.selector)) 
+            || ruleset.type === RefType.comment && ruleset.text === LESS_DISABLE
+        ) {
             return true
         }
         if(ruleset.nodes) {
@@ -179,18 +190,52 @@ const checkFileNotNeedTransform = (rulesets)=> {
     })
 }
 
-const lessReverse = () => {
-    lessAST('./common-variable.less').then(res=> {
-        dealCommonAst(res, commonVariable)
-    })
-
-    lessAST(cwd + fileUrl).then(res=> {
-        if(!checkFileNotNeedTransform(res.nodes)) {
-            createNewLess(dealLess(res))
+const reseveFile = (file: string, canExecOpen = false) => {
+    lessAST(file).then(({
+        fileData,
+        filename
+    })=> {
+        if(!checkFileNotNeedTransform(fileData.nodes)) {
+            createNewLess(dealLess(fileData), filename, canExecOpen)
         } else {
-            console.log('not need transform')
+            console.log(`${filename} file not need reverse`)
         }
     })
+}
+
+const lessReverse = () => {
+
+    const argvs = process.argv.splice(3).map(item=> {
+        if(item.substr(item.length -1) === '/') {
+            return item.substr(0, item.length -1)
+        }
+        return item
+    })
+
+    if(argvs.length !== 2) {
+        throw new Error('only supports commands less-reverse start filePath1 filePath2');
+    }
+
+    lessAST(argvs[0]).then(({
+        fileData,
+        filename
+    })=> {
+        console.log(`🏊🏻 🏊🏻 🏊🏻 Start parsing ${filename} file...`)
+        dealCommonAst(fileData, commonVariable)
+        console.log(`🎉 🎉 🎉 Parse the file ${filename} successfully...`)
+    })
+
+    fs.stat(cwd + argvs[1], (err, data)=> {
+        if(data.isFile()) {
+            reseveFile(cwd + argvs[1], data.isFile())
+        } else {
+            traverseFile(cwd + argvs[1], file=> {
+                reseveFile(file)
+            })
+        }
+    })
+
+   
 }
 
 export { lessReverse }
