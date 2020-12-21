@@ -1,0 +1,39 @@
+{
+  "name": "less-reverse",
+  "version": "1.0.0",
+  "description": "",
+  "main": "rollup.config.js",
+  "bin": {
+    "less-reverse": "./bin/init.js"
+  },
+  "scripts": {
+    "dev": "rollup -c -w",
+    "build": "rollup -c"
+  },
+  "keywords": [
+    "component",
+    "statistics"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sauron0914/less-reverse.git"
+  },
+  "author": "sauron0914(s_sauron@163.com)",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^13.9.1",
+    "chalk": "^3.0.0",
+    "commander": "^5.0.0",
+    "inquirer": "^7.1.0",
+    "postcss-less": "^4.0.0",
+    "postcss-less-engine": "^0.6.2",
+    "rollup": "^2.0.6",
+    "rollup-plugin-less": "^1.1.2",
+    "rollup-plugin-postcss": "^4.0.0",
+    "typescript": "^3.8.3"
+  },
+  "devDependencies": {
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-typescript": "^1.0.1"
+  }
+}

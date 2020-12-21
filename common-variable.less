@@ -1,0 +1,22 @@
+@color: #ff3766;
+@red-color: #ff0000;
+@green-color: #00ff00;
+
+.flex(@h: flex-start, @v: center, @wrap: nowrap) {
+  display: flex;
+  justify-content: @h;
+  align-items: @v;
+  flex-wrap: @wrap;
+}
+
+.flex-column(@h: flex-start, @v: center, @wrap: nowrap) {
+  display: flex;
+  flex-direction: column;
+  justify-content: @h;
+  align-items: @v;
+  flex-wrap: @wrap;
+}
+
+.font-style(@s: 12px) {
+  font-size: @s;
+}
