@@ -140,13 +140,13 @@ var createNewLess = function (res, filePath, canExecOpen) {
     syntax.stringify(res, function (str) {
         newCss += str;
     });
-    console.log(newCss);
-    // fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {} ,function(err){
-    //     if(err) console.log(err)
-    //     console.log('File created successfully');
-    //     console.log(`!!!注意：默认会在目标文件同级生成一个${newFileName}文件`)
-    //     canExecOpen && exec( 'open ' + path.resolve(filePath, '..', newFileName))
-    // })
+    fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {}, function (err) {
+        if (err)
+            console.log(err);
+        console.log('File created successfully');
+        console.log("!!!\u6CE8\u610F\uFF1A\u9ED8\u8BA4\u4F1A\u5728\u76EE\u6807\u6587\u4EF6\u540C\u7EA7\u751F\u6210\u4E00\u4E2A" + newFileName + "\u6587\u4EF6");
+        canExecOpen && exec('open ' + path.resolve(filePath, '..', newFileName));
+    });
 };
 /**
  * commonVariable
@@ -277,10 +277,11 @@ var checkFileNotNeedTransform = function (rulesets) {
     });
 };
 var reseveFile = function (file, canExecOpen) {
+    if (canExecOpen === void 0) { canExecOpen = false; }
     lessAST(file).then(function (_a) {
         var fileData = _a.fileData, filename = _a.filename;
         if (!checkFileNotNeedTransform(fileData.nodes)) {
-            createNewLess(dealLess(fileData), filename);
+            createNewLess(dealLess(fileData), filename, canExecOpen);
         }
         else {
             console.log(filename + " file not need reverse");
