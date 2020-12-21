@@ -27,8 +27,8 @@ export const createDecl = (prop, value) => postcss.decl({
     value,
 })
 
-export const createAtrule = (name, params, options = {}) => postcss.atRule({
-    raws: { before: '\n  ', between: '', afterName: '', identifier: '.' },
+export const createAtrule = (name, params, options = {} as any) => postcss.atRule({
+    raws: { before: options.before || '\n  ', between: '', afterName: '', identifier: '.' },
     type: 'atrule',
     name,
     params,

@@ -9,15 +9,15 @@ export enum RefType {
 interface Idecl {
     [key: string]: string
 }
-
+export interface IRuleSets {
+  [key: string]: {
+    default: string
+    alias?: string
+  }
+}
 interface IRule {
   [key: string]: {
-    ruleSets: {
-      [key: string]: {
-        default: string
-        alias?: string
-      }
-    },
+    ruleSets: IRuleSets,
     original: string,
     requireds: string[]
   }

@@ -72,13 +72,14 @@ var traverseFile = function (src, callback) {
 };
 var createAtrule = function (name, params, options) {
     if (options === void 0) { options = {}; }
-    return postcss.atRule(__assign({ raws: { before: '\n  ', between: '', afterName: '', identifier: '.' }, type: 'atrule', name: name,
+    return postcss.atRule(__assign({ raws: { before: options.before || '\n  ', between: '', afterName: '', identifier: '.' }, type: 'atrule', name: name,
         params: params }, options));
 };
 var ruleSetSort = function (a, b) {
     var getLength = function (k) { return Object.keys(k[1].ruleSets).length; };
     return getLength(b) - getLength(a);
 };
+var trim = function (str) { return str.replace(/\s*/g, ""); };
 
 var fs = require('fs');
 var program = require('commander');
@@ -115,7 +116,7 @@ function dealCommonAst(res, commonVariable) {
             });
             item.nodes.forEach(function (i) {
                 if (i.type === RefType.decl) {
-                    pre.rule[name_1].ruleSets[i.prop] = tempParams_1[i.value] ? {
+                    pre.rule[name_1].ruleSets[i.prop] = i.value.includes('@') ? {
                         default: tempParams_1[i.value],
                         alias: i.value
                     } : {
@@ -134,19 +135,18 @@ var createNewLess = function (res, filePath, canExecOpen) {
     var arr = filePath.split('/');
     var _a = arr[arr.length - 1].split('.'), name = _a[0], suffix = _a.slice(1);
     var newFileName = name + '.less-reverse.' + suffix.join('.');
-    var gloablHeaderPath = program.args[3][program.args[3].length - 1] === ';' ? program.args[3] : (program.args[3] + ';');
-    var newCss = gloablHeaderPath + '\n\n';
+    var gloablHeaderPath = program.args[3] ? (program.args[3][program.args[3].length - 1] === ';' ? program.args[3] : (program.args[3] + ';')) : '';
+    var newCss = gloablHeaderPath ? (gloablHeaderPath + '\n\n') : '';
     syntax.stringify(res, function (str) {
         newCss += str;
     });
-    console.log('canExecOpen', canExecOpen, cwd + newFileName);
-    fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {}, function (err) {
-        if (err)
-            console.log(err);
-        console.log('File created successfully');
-        console.log("!!!\u6CE8\u610F\uFF1A\u9ED8\u8BA4\u4F1A\u5728\u76EE\u6807\u6587\u4EF6\u540C\u7EA7\u751F\u6210\u4E00\u4E2A" + newFileName + "\u6587\u4EF6");
-        canExecOpen && exec('open ' + path.resolve(filePath, '..', newFileName));
-    });
+    console.log(newCss);
+    // fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {} ,function(err){
+    //     if(err) console.log(err)
+    //     console.log('File created successfully');
+    //     console.log(`!!!注意：默认会在目标文件同级生成一个${newFileName}文件`)
+    //     canExecOpen && exec( 'open ' + path.resolve(filePath, '..', newFileName))
+    // })
 };
 /**
  * commonVariable
@@ -185,6 +185,16 @@ var transformDecl = function (item) {
             item.value = key;
         }
     });
+};
+var dealOriginal = function (original, ruleSets) {
+    var tempOriginal = original.replace('(', '').replace(')', '').split(',');
+    var res = tempOriginal.reduce(function (pre, item) {
+        if (item.includes('@'))
+            item = Object.values(ruleSets).filter(function (i) { return i.alias === trim(item); })[0].default;
+        pre.push(item);
+        return pre;
+    }, []).join(',');
+    return "(" + res + ")";
 };
 var transformRule = function (lessTree) {
     var isCanTransformRule = Object.entries(commonVariable.rule).sort(ruleSetSort).some(function (_a) {
@@ -226,7 +236,12 @@ var transformRule = function (lessTree) {
                     nodes_1.push(item);
                 }
             });
-            lessTree.nodes = __spreadArrays([createAtrule(key, original, { mixin: true })], nodes_1);
+            lessTree.nodes = __spreadArrays([
+                createAtrule(key, dealOriginal(original, ruleSets), {
+                    mixin: true,
+                    before: lessTree.nodes[0].raws.before
+                })
+            ], nodes_1);
         }
         return isCanBeConverted;
     });
@@ -262,11 +277,10 @@ var checkFileNotNeedTransform = function (rulesets) {
     });
 };
 var reseveFile = function (file, canExecOpen) {
-    if (canExecOpen === void 0) { canExecOpen = false; }
     lessAST(file).then(function (_a) {
         var fileData = _a.fileData, filename = _a.filename;
         if (!checkFileNotNeedTransform(fileData.nodes)) {
-            createNewLess(dealLess(fileData), filename, canExecOpen);
+            createNewLess(dealLess(fileData), filename);
         }
         else {
             console.log(filename + " file not need reverse");

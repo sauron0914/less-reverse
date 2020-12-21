@@ -1,6 +1,6 @@
 
-import { ICommonVariable, RefType } from "./types"
-import { createAtrule, ruleSetSort, traverseFile } from "./utils"
+import { ICommonVariable, IRuleSets, RefType } from "./types"
+import { createAtrule, ruleSetSort, traverseFile, trim } from "./utils"
 
 const fs = require('fs')
 const program = require('commander')
@@ -39,7 +39,7 @@ function dealCommonAst(res, commonVariable) {
             })
             item.nodes.forEach(i => {
                 if(i.type === RefType.decl) {
-                    pre.rule[name].ruleSets[i.prop] = tempParams[i.value] ? {
+                    pre.rule[name].ruleSets[i.prop] = i.value.includes('@') ? {
                         default: tempParams[i.value],
                         alias: i.value
                     } : {
@@ -61,20 +61,22 @@ const createNewLess = (res, filePath, canExecOpen)=> {
     const [name, ...suffix] = arr[arr.length -1].split('.')
     const newFileName = name + '.less-reverse.' + suffix.join('.')
 
-    const gloablHeaderPath = program.args[3][program.args[3].length - 1] === ';' ? program.args[3] : (program.args[3]+';')
+    const gloablHeaderPath =  program.args[3] ? (program.args[3][program.args[3].length - 1] === ';' ? program.args[3] : (program.args[3]+';')) : ''
 
-    let newCss =  gloablHeaderPath + '\n\n'
+    let newCss =  gloablHeaderPath ? (gloablHeaderPath + '\n\n') : ''
 
     syntax.stringify(res, function( str ) {
         newCss += str
     })
-    console.log('canExecOpen', canExecOpen,  cwd + newFileName)
-    fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {} ,function(err){
-        if(err) console.log(err)
-        console.log('File created successfully');
-        console.log(`!!!注意：默认会在目标文件同级生成一个${newFileName}文件`)
-        canExecOpen && exec( 'open ' + path.resolve(filePath, '..', newFileName))
-    })
+
+    console.log(newCss)
+
+    // fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {} ,function(err){
+    //     if(err) console.log(err)
+    //     console.log('File created successfully');
+    //     console.log(`!!!注意：默认会在目标文件同级生成一个${newFileName}文件`)
+    //     canExecOpen && exec( 'open ' + path.resolve(filePath, '..', newFileName))
+    // })
 }
 
 /**
@@ -116,9 +118,22 @@ const transformDecl = item => {
     })
 }
 
+const dealOriginal = (original, ruleSets: IRuleSets) => {
+    const tempOriginal = original.replace('(', '').replace(')', '').split(',')
+    const res = tempOriginal.reduce((pre, item)=> {
+        
+        if(item.includes('@'))  item = Object.values(ruleSets).filter(i=>i.alias === trim(item))[0].default
+
+        pre.push(item)
+
+        return pre
+    }, []).join(',')
+    return `(${res})`
+}
+
 const transformRule = lessTree => {
     const isCanTransformRule = Object.entries(commonVariable.rule).sort(ruleSetSort).some(([key, {original, ruleSets, requireds}])=> {
-        
+
         let isCanBeConverted = false
 
         if (requireds.length){
@@ -134,7 +149,6 @@ const transformRule = lessTree => {
                 return p
             }, Object.keys(ruleSets).length)
         }
-
         if(isCanBeConverted) {
             const nodes = []
             lessTree.nodes.forEach(item => {
@@ -154,7 +168,14 @@ const transformRule = lessTree => {
                     nodes.push(item)
                 }
             })
-            lessTree.nodes = [createAtrule(key,original, { mixin: true }), ...nodes]
+            
+            lessTree.nodes = [
+                createAtrule(key, dealOriginal(original, ruleSets), { 
+                    mixin: true,
+                    before: lessTree.nodes[0].raws.before
+                }),
+                ...nodes
+            ]
         }
 
         return isCanBeConverted

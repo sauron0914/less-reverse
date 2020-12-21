@@ -1,0 +1,28 @@
+@red-color: red;
+@black-darker-color: #1A1A1A;
+@black-light-color: #909090;
+
+.flex(@h: flex-start, @v: center, @wrap: nowrap) {
+  display: flex;
+  justify-content: @h;
+  align-items: @v;
+  flex-wrap: @wrap;
+}
+
+.flex-column(@h: flex-start, @v: flex-start) {
+  display: flex;
+  flex-direction: column;
+  justify-content: $h;
+  align-items: $v;
+}
+
+.ellipsis(@max-width) {
+  max-width: @max-width;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.font-size(@s) {
+  font-size: @s;
+}
