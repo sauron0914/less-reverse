@@ -71,14 +71,12 @@ const createNewLess = (res, filePath, canExecOpen)=> {
         newCss += str
     })
 
-    console.log(newCss)
-
-    // fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {} ,function(err){
-    //     if(err) console.log(err)
-    //     console.log('File created successfully');
-    //     console.log(`!!!注意：默认会在目标文件同级生成一个${newFileName}文件`)
-    //     canExecOpen && exec( 'open ' + path.resolve(filePath, '..', newFileName))
-    // })
+    fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {} ,function(err){
+        if(err) console.log(err)
+        console.log('File created successfully');
+        console.log(`!!!注意：默认会在目标文件同级生成一个${newFileName}文件`)
+        canExecOpen && exec( 'open ' + path.resolve(filePath, '..', newFileName))
+    })
 }
 
 /**
