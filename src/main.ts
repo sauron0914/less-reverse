@@ -45,7 +45,9 @@ function dealCommonAst(res, commonVariable) {
                     } : {
                         default: i.value,
                     }
-                    if(!i.value.includes('@')) {
+                    // 不包含 @ 的，和包含 @ 并且没有默认值的，都视为必传项
+                    if(!i.value.includes('@') 
+                        || ((i.value.includes('@') && i.parent.selector.match(/\(.*\)/)[0].split(',').some(k=> k.includes(i.value) && !k.includes(':'))))) {
                         pre.rule[name].requireds.push(i.prop)
                     }
                 }
@@ -69,12 +71,14 @@ const createNewLess = (res, filePath, canExecOpen)=> {
         newCss += str
     })
 
-    fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {} ,function(err){
-        if(err) console.log(err)
-        console.log('File created successfully');
-        console.log(`!!!注意：默认会在目标文件同级生成一个${newFileName}文件`)
-        canExecOpen && exec( 'open ' + path.resolve(filePath, '..', newFileName))
-    })
+    console.log(newCss)
+
+    // fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {} ,function(err){
+    //     if(err) console.log(err)
+    //     console.log('File created successfully');
+    //     console.log(`!!!注意：默认会在目标文件同级生成一个${newFileName}文件`)
+    //     canExecOpen && exec( 'open ' + path.resolve(filePath, '..', newFileName))
+    // })
 }
 
 /**
@@ -133,10 +137,9 @@ const transformRule = lessTree => {
     const isCanTransformRule = Object.entries(commonVariable.rule).sort(ruleSetSort).some(([key, {original, ruleSets, requireds}])=> {
 
         let isCanBeConverted = false
-
         if (requireds.length){
             isCanBeConverted = !lessTree.nodes.reduce((p, i)=> {
-                if(i.type ===  RefType.decl && requireds.includes(i.prop)) {
+                if(i.type ===  RefType.decl && requireds.includes(i.prop) && (!ruleSets[i.prop].default || i.value === ruleSets[i.prop].default)) {
                     p.splice(p.indexOf(i.prop), 1)
                 }
                 return p
@@ -147,6 +150,7 @@ const transformRule = lessTree => {
                 return p
             }, Object.keys(ruleSets).length)
         }
+
         if(isCanBeConverted) {
             const nodes = []
             lessTree.nodes.forEach(item => {

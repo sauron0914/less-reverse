@@ -122,7 +122,9 @@ function dealCommonAst(res, commonVariable) {
                     } : {
                         default: i.value,
                     };
-                    if (!i.value.includes('@')) {
+                    // 不包含 @ 的，和包含 @ 并且没有默认值的，都视为必传项
+                    if (!i.value.includes('@')
+                        || ((i.value.includes('@') && i.parent.selector.match(/\(.*\)/)[0].split(',').some(function (k) { return k.includes(i.value) && !k.includes(':'); })))) {
                         pre.rule[name_1].requireds.push(i.prop);
                     }
                 }
@@ -140,13 +142,13 @@ var createNewLess = function (res, filePath, canExecOpen) {
     syntax.stringify(res, function (str) {
         newCss += str;
     });
-    fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {}, function (err) {
-        if (err)
-            console.log(err);
-        console.log('File created successfully');
-        console.log("!!!\u6CE8\u610F\uFF1A\u9ED8\u8BA4\u4F1A\u5728\u76EE\u6807\u6587\u4EF6\u540C\u7EA7\u751F\u6210\u4E00\u4E2A" + newFileName + "\u6587\u4EF6");
-        canExecOpen && exec('open ' + path.resolve(filePath, '..', newFileName));
-    });
+    console.log(newCss);
+    // fs.writeFile(path.resolve(filePath, '..', newFileName), newCss, {} ,function(err){
+    //     if(err) console.log(err)
+    //     console.log('File created successfully');
+    //     console.log(`!!!注意：默认会在目标文件同级生成一个${newFileName}文件`)
+    //     canExecOpen && exec( 'open ' + path.resolve(filePath, '..', newFileName))
+    // })
 };
 /**
  * commonVariable
@@ -202,7 +204,7 @@ var transformRule = function (lessTree) {
         var isCanBeConverted = false;
         if (requireds.length) {
             isCanBeConverted = !lessTree.nodes.reduce(function (p, i) {
-                if (i.type === RefType.decl && requireds.includes(i.prop)) {
+                if (i.type === RefType.decl && requireds.includes(i.prop) && (!ruleSets[i.prop].default || i.value === ruleSets[i.prop].default)) {
                     p.splice(p.indexOf(i.prop), 1);
                 }
                 return p;
@@ -277,11 +279,10 @@ var checkFileNotNeedTransform = function (rulesets) {
     });
 };
 var reseveFile = function (file, canExecOpen) {
-    if (canExecOpen === void 0) { canExecOpen = false; }
     lessAST(file).then(function (_a) {
         var fileData = _a.fileData, filename = _a.filename;
         if (!checkFileNotNeedTransform(fileData.nodes)) {
-            createNewLess(dealLess(fileData), filename, canExecOpen);
+            createNewLess(dealLess(fileData), filename);
         }
         else {
             console.log(filename + " file not need reverse");
